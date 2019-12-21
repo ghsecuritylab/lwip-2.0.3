@@ -1,3 +1,64 @@
+操作系统模拟层在 lwip 和操作系统内核底层之间提供一套公共接口。
+通用的做法是移植 lwip 
+到一个新的架构上仅仅需要对一小部分头文件进行很少的改动和实现新的 sys_arch,
+也可以不依赖操作系统底层来实现 sys_arch。
+
+sys_arch 为 lwip 提供 semaphores, mailboxes and mutexes。对于完整的 lwip，
+sys_arch 可以实现多线程。对于基础的 lwip，不需要实现多线程。定时器调度实现
+在 lwip 中，也通过 LWIP_TIMERS_CUSTOM==1 可以在 sys_arch 中实现
+
+除了提供实现 sys_arch 功能的源文件外，操作系统模拟层还必须提供几个头文件来
+定义 lwip 中使用的宏。这几个头文件和内部定义的宏描述在下面。
+
+信号量可以是计数或者二进制(lwip 都支持)；邮箱应该实现为允许多条消息发布的
+一个队列(同一时间只允许一条消息会对性能有很大影响)。邮箱中的消息应该仅仅是
+一个指针
+
+semaphores 类型 sys_sem_t 应该在 sys_arch.h 中使用 typedef 来重定义
+mailboxes 类型 sys_mbox_t 应该在 sys_arch.h 中使用 typedef 来重定义
+mutexes 类型 sys_mutex_t 应该在 sys_arch.h 中使用 typedef 来重定义
+这些类型在 lwip 内部如何表示没有限制
+
+从 1.4.0 开始，semaphore, mutexes and mailbox 被设计成使用指针或者使用实际
+操作系统的结构体。这样，这些类型需要的内存可以就地分配(全局或者堆栈)，也可
+以在堆上分配(*_new() 函数内部分配)
+
+sys_arch 必须实现下列功能：
+关于 semaphore
+	void sys_init(void)									初始化 sys_arch 层
+	err_t sys_sem_new(sys_sem_t *sem, u8_t count)		创建新的 semaphore
+		分配一块内存，sem 指向这块内存( sem 指向的可能是指针或者结构体)。
+		count 指定了 semaphore 的初始状态(0或者 1)
+		执行成功返回 ERR_OK，如果返回其他值应该提供错误提示，但除了断言之外
+		没有实现实际的错误处理
+	void sys_sem_free(sys_sem_t *sem)					删除 semaphore
+	void sys_sem_signal(sys_sem_t *sem)					释放 semaphore
+	u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)	等待 semaphore
+		当等待时阻塞线程。timeout 不为 0, 则阻塞指定时间(单位是 ms)。如果
+		timeout = 0, 则阻塞直到 semaphore 释放。
+		timeout不为 0，当 semaphore 释放时返回等待时间，不过在 timeout 时间
+		内没有释放，则返回 SYS_ARCH_TIMEOUT。如果线程不必等待(例如 semaphore
+		已经释放)，则有可能返回0。
+		lwip 中实现了 sys_sem_wait() 使用了 sys_arch_sem_wait() 函数
+	int sys_sem_valid(sys_sem_t *sem)				semaphore 是否有效
+		返回 1表示有效，0表示无效
+		如果使用指针，直接判断指针是否为空；如果是结构体，会有点复杂，
+		这种情况下 sys_sem_valid 可能仅仅是一个宏定义，这时候不是一个原型
+	void sys_sem_set_invalid(sys_sem_t *sem)		设置 semaphore 为无效以便
+		sys_sem_valid() 可以返回 0；调用这个之前必须先调用 sys_sem_free()
+		这个也可能是一个宏定义，这时候不是原型
+关于 mutex
+	void sys_mutex_new(sys_mutex_t *mutex)			创建一个 mutex
+		分配一块内存，mutex 指向这块内存( mutex 指向的可能是指针或者结构体)。
+		执行成功返回 ERR_OK，如果返回其他值应该提供错误提示，但除了断言之外
+		没有实现实际的错误处理
+	void sys_mutex_free(sys_mutex_t *mutex)			删除 mutex
+	void sys_mutex_lock(sys_mutex_t *mutex)			获取 mutex
+		阻塞线程直到获取了 mutex
+	void sys_mutex_unlock(sys_mutex_t *mutex)		释放 mutex
+		释放通过 sys_mutex_lock 获取到的 mutex
+	
+
 sys_arch interface for lwIP
 
 Author: Adam Dunkels

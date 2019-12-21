@@ -1,3 +1,67 @@
+lwip 提供三种 API 接口用于应用程序与 TCP/IP 代码通信：raw API;sequential API;BSD socket API
+
+raw API 是事件驱动类型的 API，用于没有操作系统的环境下，实现发送接收的零拷贝。这种 
+API 也用于协议栈种不同协议之间的交互。当环境种没有操作系统时只有这种 API 可用。
+
+sequential API 提供使用 lwip 协议栈通用的方法。与 BSD socket API 相似。执行模型基于
+阻塞的打开-读-写-关闭模型。由于 tcp/ip 协议栈本质上是基于事件驱动的，所以 tcp/ip 代码
+与应用程序必须驻留在不同上下文(线程)。
+
+BSD socket API 是现有应用程序的兼容 API, 构建于 sequential API 基础之上。为运行于其他平台
+上的基于 socket API 应用程序提供所有功能。由于这种 API 
+规范的限制，一些不兼容可能需要对现有程序进行小的改动。
+
+关于多线程
+lwip 起初是针对单线程环境。当多线程支持时，不采用核心线程安全，而采用将 lwip 
+内核运行于一个单独的线程(tcpip_thread)。当运行多线程时，raw API 必须仅仅被 tcpip_thread 
+调用，因为 raw API 不受并发访问的保护(除了 pbuf- 和内存管理功能)。使用 sequential 和 socket 
+API 的应用程序线程与 
+tcpip_thread 之间通过消息传递来通信。
+因此，可以被其他线程或者中断调用的函数列表非常有限。仅仅来自下列头文件中的接口是线程安全的：
+	- api.h
+	- netbuf.h
+	- netdb.h
+	- netifapi.h
+	- pppapi.h
+	- sockets.h
+	- sys.h
+当 NO_SYS = 0 时，内存分配和释放函数可以被多线程调用(不是中断)，因为他们受 SYS_LIGHTWEIGHT_PROT 和
+semaphores保护。
+Netconn 和 socket API 对于 tcpip_thread 
+来说是线程安全的，但是在控制块级别是不可重入的。因此 UDP 和 TCP 
+控制块如果没有合适的 lock，不能在多个线程间共享。
+
+如果 SYS_LIGHTWEIGHT_PROT = 1 和 LWIP_ALLOW_MEM_FREE_FROM_OTHER_CONTEXT = 1，pbuf_free() 
+可以被其他线程和中断调用(因为只有这样，应用于 PBUF_RAM 的 mem_free 
+可以被中断调用，否则 HEAP 仅仅被 semaphores 保护)
+
+关于 raw API:
+raw API 允许应用程序更好的集成 TCP/IP 代码。程序执行基于 TCP/IP 
+中调用事件回调函数。TCP/IP 和应用程序运行在同一个线程中。sequential API 开销比较大，
+不适合小型系统，由于它强制应用程序采用多线程。
+
+raw API 不仅在代码执行方面更快，而且消耗更少内存。缺点是程序开发比较困难，使用该接口写的应用
+程序不容易理解。尽管如此，仍然是对代码大小和内存有限制的应用程序的最佳选择。
+
+所有的 API 可以被不同的应用程序同时使用，事实上 sequential API 是使用 raw API 
+接口实现的应用程序。
+
+不要混淆 raw API 和 raw Ethernet or IP socket, 前者是访问 lwip 协议栈接口(包括 TCP 和 UDP)的一种方式；
+后者是处理以太网和 IP 的原始数据而不是 TCP 连接和 UDP 包。
+
+raw API 永远也不会阻塞，因为所有的包处理(输入/输出)和定时器处理(主要是 
+TCP)都是在单线程环境中执行。
+
+关于回调：
+程序执行是回调驱动，当应用程序相关的活动发生时，lwip 内核调用相应回调函数。
+一个特定的应用程序可以通过一个回调函数注册来获取事件通知，比如接收数据可用，
+数据已经发送，错误通知，定时器超时，连接关闭等等。。
+应用可以提供回调函数来处理这些事件，每一个回调都是 lwip 内核调用的原生的 C 函数；
+每个回调都将当前的 TCP/UDP 
+的连接状态作为参数传递。为了保持应用程序特定的状态，回调函数也传递应用程序指定的参数,
+该参数与 TCP/IP 状态无关。
+
+
 Raw TCP/IP interface for lwIP
 
 Authors: Adam Dunkels, Leon Woestenberg, Christiaan Simons

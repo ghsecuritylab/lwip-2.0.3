@@ -1,3 +1,64 @@
+MDNS responder 并没有实现标准所要求的所有特性，在 src/apps/mdns/mdns.c 中的注释中
+查看没有实现的特性。同一个网络中多个设备使用相同的 host/service 实例名字会有问题。
+
+开启 MDNS:
+	MDNS 不依赖于 DNS;
+	MDNS 可以使用 IPv4 ，IPv6， 或者 IPv4 和 IPv6;
+	设置 lwipopt.h 中的 LWIP_MDNS_RESPONDER = 1， 将 src/apps/mdns/mdns.c
+	添加到编译系统中;
+	服务的最大数量由 MDNS_MAX_SERVICES 定义，默认是 1;
+	MDNS 需要一个 PCB，因此 MEMP_NUM_UDP_PCB 需要加 1;
+	MDNS 需要关于 netif 的一个条目，因此 LWIP_NUM_NETIF_CLIENT_DATA 需要加 1;
+	MDNS 使用 IPv4 时需要 LWIP_IGMP = 1， 最好 LWIP_AUTOIP = 1;
+	MDNS 使用 IPv6 时需要 LWIP_IPV6_MLD = 1，并且需要生成一个本地链接地址;
+	MDNS 代码把结构体放在堆栈中合适的地方来减少动态内存的分配。可以使用多大 1KB 
+	的堆栈;
+	MDNS 需要实现 strncasecmp()，如果已有该函数的实现，则对其定义 LWIP_MDNS_STRNCASECMP，
+	否则代码中需要提供实现;
+使用 MDNS:
+	系统初始化时调用 mdns_resp_init()，用来开启 UDP socket 5353 端口(IPv4 和 IPv6);
+	调用 mdns_resp_add_netif(struct netif *netif, char *hostname, u32_t dns_ttl)，用来
+	在一个 netif 上开启响应。hostname 会被拷贝，如果成功返回，这个 netif 会加入组播组，
+	发往 5353 端口的单播和多播 MDNS 和遗留的 DNS 请求会被处理：
+		type A, AAA 或者 ANY 的 <hostname>.local 返回相应的 IP 地址
+		netif 地址的反向查询(PTR in-addr.arpa, ip6.arpa) 返回 <hostname>.local
+		响应会使用提供的 TTL(单位是秒)
+		MDNS 允许 UTF-8 格式的名称，推荐使用 ASCII,因为默认的大小写敏感比较假定是 ASCII 码。
+		最好在 ip 地址设置好后调用该接口，因为这个接口没有检查 ip 地址是否可用
+		当 ip 地址变化后需要调用 mdns_resp_netif_settings_changed()
+		停止responding 时调用 mdns_resp_remove_netif(struct netif *netif)
+添加服务：
+	netif 首先需要注册，然后调用 
+	mdns_resp_add_service(struct netif *netif, char *name, char *service,
+      u16_t proto, u16_t port, u32_t dns_ttl,
+      service_get_txt_fn_t txt_fn, void *txt_userdata); 来添加服务
+      	name 和 service 会被拷贝，name 表示服务实例的名字，service 表示服务的类型，例如 _http,
+      	proto 可以是 DNSSD_PROTO_UDP(表示 _udp) 或者 DNSSD_PROTO_TCP(表示 _tcp)
+      	如果该接口调用成功，下面的询问会被返回：
+      		_services._dns-sd._udp.local type PTR 返回 <service>.<proto>.local
+			<service>.<proto>.local type PTR 返回 <name>.<service>.<proto>.local
+			<name>.<service>.<proto>.local type SRV 返回服务的 hostname 和端口
+			<name>.<service>.<proto>.local type TXT 通过使用提供的 userdata调用 txt_fn 来构建
+			文本字符串。这个回调通过调用 
+			mdns_resp_add_service_txtitem(struct mdns_service *service, char *txt, int txt_len)
+			来填充要响应的字符串。txt_fn 回调示例：
+				static void srv_txt(struct mdns_service *service, void *txt_userdata)
+			   {
+			     res = mdns_resp_add_service_txtitem(service, "path=/", 6);
+			     LWIP_ERROR("mdns add service txt failed\n", (res == ERR_OK), return);
+			   }
+   		hostname 使用 txt 存储，单个条目的最大长度为 63 
+   		字节，总的最大长度(包含每个条目的长度字节)是 255 字节
+   		如果设备运行一个 webserver 在 80 端口，可以使用：
+   			mdns_resp_add_service(netif, "myweb", "_http"
+      			DNSSD_PROTO_TCP, 80, 3600, srv_txt, NULL);
+      	用来向任何需要 web 服务器的主机发布 myweb._http._tcp.local，并将其之指向 <hostname>.local:80
+	相关信息作为附加记录来发送用于减少来自客户端的请求数量
+	服务移除当前没有支持，netif 移除时，服务就会移除
+   		
+
+
+
 Multicast DNS for lwIP
 
 Author: Erik Ekman
