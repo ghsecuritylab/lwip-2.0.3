@@ -274,7 +274,7 @@ struct mem {
  * MIN_SIZE can be overridden to suit your needs. Smaller values save space,
  * larger values could prevent too small blocks to fragment the RAM too much. */
 #ifndef MIN_SIZE
-#define MIN_SIZE             12
+#define MIN_SIZE             12		// 可以设置为别的值
 #endif /* MIN_SIZE */
 /* some alignment macros: we define them here for better source code layout */
 #define MIN_SIZE_ALIGNED     LWIP_MEM_ALIGN_SIZE(MIN_SIZE)
@@ -379,12 +379,12 @@ plug_holes(struct mem *mem)
  * Zero the heap and initialize start, end and lowest-free
  */
 void
-mem_init(void)
+mem_init(void)		// 动态内存堆分配策略的初始化
 {
   struct mem *mem;
 
   LWIP_ASSERT("Sanity check alignment",
-    (SIZEOF_STRUCT_MEM & (MEM_ALIGNMENT-1)) == 0);
+    (SIZEOF_STRUCT_MEM & (MEM_ALIGNMENT-1)) == 0);		// 是否边界对齐，边界对齐了继续往下
 
   /* align the heap */
   ram = (u8_t *)LWIP_MEM_ALIGN(LWIP_RAM_HEAP_POINTER);

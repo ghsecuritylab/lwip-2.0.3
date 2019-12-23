@@ -138,6 +138,7 @@
 
 /** Enable debug message printing, but only if debug message type is enabled
  *  AND is of correct type AND is at least LWIP_DBG_LEVEL.
+ *  使能debug信息打印。但是仅仅当打印信息类型使能，且是正确的类型，而且符合最新的调试等级
  */
 #ifdef __DOXYGEN__
 #define LWIP_DEBUG

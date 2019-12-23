@@ -221,6 +221,7 @@
  * MEM_LIBC_MALLOC==1: Use malloc/free/realloc provided by your C-library
  * instead of the lwip internal allocator. Can save code size if you
  * already use it.
+ * 1:使用标准C库，0:使用lwip内存堆
  */
 #if !defined MEM_LIBC_MALLOC || defined __DOXYGEN__
 #define MEM_LIBC_MALLOC                 0
@@ -282,6 +283,7 @@
  * of memory pools of various sizes. When mem_malloc is called, an element of
  * the smallest pool that can provide the length needed is returned.
  * To use this, MEMP_USE_CUSTOM_POOLS also has to be enabled.
+ * 1:动态内存堆采用内存池，需要MEMP_USE_CUSTOM_POOLS配合使用
  */
 #if !defined MEM_USE_POOLS || defined __DOXYGEN__
 #define MEM_USE_POOLS                   0
@@ -290,7 +292,9 @@
 /**
  * MEM_USE_POOLS_TRY_BIGGER_POOL==1: if one malloc-pool is empty, try the next
  * bigger pool - WARNING: THIS MIGHT WASTE MEMORY but it can make a system more
- * reliable. */
+ * reliable. 
+ * 1:如果适合长度的内存池中没有空间了，将从更大长度的内存池分配
+ */
 #if !defined MEM_USE_POOLS_TRY_BIGGER_POOL || defined __DOXYGEN__
 #define MEM_USE_POOLS_TRY_BIGGER_POOL   0
 #endif
@@ -300,6 +304,7 @@
  * that defines additional pools beyond the "standard" ones required
  * by lwIP. If you set this to 1, you must have lwippools.h in your
  * include path somewhere.
+ * 使用这个需要额外开辟缓冲池区
  */
 #if !defined MEMP_USE_CUSTOM_POOLS || defined __DOXYGEN__
 #define MEMP_USE_CUSTOM_POOLS           0

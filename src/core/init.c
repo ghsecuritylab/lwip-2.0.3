@@ -346,10 +346,17 @@ lwip_init(void)
 #endif
 
   /* Modules initialization */
+  /*如果打开调试信息，查看内存状态，这个函数初始化内存状态的name*/
   stats_init();
+  /* 有操作系统的话需要进行初始化,这个初始化函数需要用户在sys_arch.c文
+   * 件中给出实现，并在初始化其他lwip功能之前调用
+   */
 #if !NO_SYS
   sys_init();
 #endif /* !NO_SYS */
+  /* 内存初始化:1、如果使用C库的分配策略或者使用内存池的分配策略，则为空实现
+   * 2、动态内存堆策略，有初始化
+   */
   mem_init();
   memp_init();
   pbuf_init();

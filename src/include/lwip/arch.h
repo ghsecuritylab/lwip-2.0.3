@@ -122,6 +122,9 @@ typedef uint16_t  u16_t;
 typedef int16_t   s16_t;
 typedef uint32_t  u32_t;
 typedef int32_t   s32_t;
+/* 指向无符号数据的指针类型，当需要将指针作为整数和整数运算时
+ * 需要将指针转换为这种类型运算
+ */
 typedef uintptr_t mem_ptr_t;
 #endif
 
@@ -134,6 +137,7 @@ typedef uintptr_t mem_ptr_t;
 #endif
 
 /* Define (sn)printf formatters for these lwIP types */
+/*定义格式化输出的格式符*/
 #if !LWIP_NO_INTTYPES_H
 #include <inttypes.h>
 #ifndef X8_F
@@ -176,6 +180,7 @@ typedef uintptr_t mem_ptr_t;
 #endif
 
 /** C++ const_cast<target_type>(val) equivalent to remove constness from a value (GCC -Wcast-qual) */
+// 移除常量限定
 #ifndef LWIP_CONST_CAST
 #define LWIP_CONST_CAST(target_type, val) ((target_type)((ptrdiff_t)val))
 #endif
@@ -298,12 +303,14 @@ extern "C" {
  * the Win32 port in the lwIP contrib repository for reference.
  * For examples of packed struct declarations, see include/lwip/prot/ subfolder.\n
  * A port to GCC/clang is included in lwIP, if you use these compilers there is nothing to do here.
+ * 打包结构体支持，bpstruct.h文件中是 #pragma pack(push,1), epstruct.h文件中是#pragma pack(pop),也就是在这之间的结构体按一个字节对齐。
  */
 #ifdef __DOXYGEN__
 #define PACK_STRUCT_USE_INCLUDES
 #endif
 
 /** Eliminates compiler warning about unused arguments (GCC -Wextra -Wunused). */
+// 消除编译器关于未使用变量的警告。
 #ifndef LWIP_UNUSED_ARG
 #define LWIP_UNUSED_ARG(x) (void)x
 #endif /* LWIP_UNUSED_ARG */
